@@ -7,18 +7,18 @@ import warnings
 from enum import Enum
 
 import torch
-import torch.nn as nn
-import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
-import torch.optim
-from torch.optim.lr_scheduler import StepLR
 import torch.multiprocessing as mp
+import torch.nn as nn
+import torch.nn.parallel
+import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
-import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
+import torchvision.transforms as transforms
+from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Subset
 
 model_names = sorted(name for name in models.__dict__
@@ -106,8 +106,11 @@ def main():
 
     if torch.cuda.is_available():
         ngpus_per_node = torch.cuda.device_count()
+        if ngpus_per_node == 1 and args.dist_backend == "nccl":
+            warnings.warn("nccl backend >=2.5 requires GPU count>1, see https://github.com/NVIDIA/nccl/issues/103 perhaps use 'gloo'")
     else:
         ngpus_per_node = 1
+
     if args.multiprocessing_distributed:
         # Since we have ngpus_per_node processes per node, the total world_size
         # needs to be adjusted accordingly
@@ -275,13 +278,12 @@ def main_worker(gpu, ngpus_per_node, args):
             train_sampler.set_epoch(epoch)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, args)
+        train(train_loader, model, criterion, optimizer, epoch, device, args)
 
         # evaluate on validation set
         acc1 = validate(val_loader, model, criterion, args)
         
         scheduler.step()
-
         
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
@@ -299,7 +301,7 @@ def main_worker(gpu, ngpus_per_node, args):
             }, is_best)
 
 
-def train(train_loader, model, criterion, optimizer, epoch, args):
+def train(train_loader, model, criterion, optimizer, epoch, device, args):
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -318,13 +320,9 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        if args.gpu is not None and torch.cuda.is_available():
-            images = images.cuda(args.gpu, non_blocking=True)
-        elif not args.gpu and torch.cuda.is_available():
-            target = target.cuda(args.gpu, non_blocking=True)
-        elif torch.backends.mps.is_available():
-            images = images.to('mps')
-            target = target.to('mps')
+        # move data to the same device as model
+        images = images.to(device, non_blocking=True)
+        target = target.to(device, non_blocking=True)
 
         # compute output
         output = model(images)

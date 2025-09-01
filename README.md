@@ -1,7 +1,5 @@
 # PyTorch Examples
 
-![Run Examples](https://github.com/pytorch/examples/workflows/Run%20Examples/badge.svg)
-
 https://pytorch.org/examples/
 
 `pytorch/examples` is a repository showcasing examples of using [PyTorch](https://github.com/pytorch/pytorch). The goal is to have curated, short, few/no dependencies _high quality_ examples that are substantially different from each other that can be emulated in your existing work.
@@ -31,8 +29,6 @@ https://pytorch.org/examples/
 - [Several examples illustrating the C++ Frontend](cpp)
 - [Image Classification Using Forward-Forward](./mnist_forward_forward/README.md)
 - [Language Translation using Transformers](./language_translation/README.md)
-
-
 
 Additionally, a list of good examples hosted in their own repositories:
 
